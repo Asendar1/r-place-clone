@@ -8,8 +8,36 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/redis/go-redis/v9"
+	"github.com/gorilla/websocket"
+	// "github.com/redis/go-redis/v9"
 )
+
+func (h *Hub) handleWs(w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{
+		ReadBufferSize: 1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {return true},
+	}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println("Upgrade error:", err)
+		return
+	}
+
+	client := &Client{
+		Hub: h,
+		Send: make(chan []byte),
+		conn: conn,
+	}
+
+	h.Register <- client
+	defer func() {
+		h.Unregister <- client
+	} ()
+
+	go client.ReadPump()
+	go client.DisplayRefresh()
+}
 
 func main() {
 	ctx := context.Background()
@@ -25,24 +53,24 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(time.Second * 60))
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+	hub := &Hub{
+		Clients:    make(map[*Client]bool),
+		Broadcast:  make(chan []byte),
+		Register:   make(chan *Client),
+		Unregister: make(chan *Client),
+	}
 
-		time_started := time.Now()
-		defer func() {
-			log.Printf("Request processed in %s", time.Since(time_started))
-		} ()
-
-		val, err := redisClient.Get(r.Context(), "canvas").Bytes()
-		if err == redis.Nil {
-			http.Error(w, "Canvas not found", http.StatusNotFound)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Write(val)
+	go hub.Run()
+	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
+		hub.handleWs(w, r)
 	})
 
-
+	r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+		val := r.URL.Query().Get("q")
+		if val != "" {
+			hub.Broadcast <- []byte(val)
+		}
+	})
 
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
