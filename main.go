@@ -31,12 +31,9 @@ func (h *Hub) handleWs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.Register <- client
-	defer func() {
-		h.Unregister <- client
-	} ()
 
-	go client.ReadPump()
 	go client.DisplayRefresh()
+	client.ReadPump()
 }
 
 func main() {

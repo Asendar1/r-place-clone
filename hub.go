@@ -36,6 +36,10 @@ func (c *Client) ReadPump() {
 			break
 		}
 
+		if len(p) < 4 {
+			continue
+		}
+
 		c.Hub.Broadcast <- p
 	}
 }

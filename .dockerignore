@@ -5,3 +5,5 @@ Dockerfile
 docker-compose.yml
 .env
 r_place
+venv
+tests.py
