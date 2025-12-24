@@ -18,6 +18,6 @@ async def client():
 	async with websockets.connect(uri) as websocket:
 		await websocket.send("hello")
 
-asyncio.run(client())
 asyncio.run(listen_client())
+asyncio.run(client())
 

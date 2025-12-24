@@ -36,6 +36,10 @@ func (h *Hub) handleWs(w http.ResponseWriter, r *http.Request) {
 	client.ReadPump()
 }
 
+func HandleHomePage(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "html/index.html")
+}
+
 func main() {
 	ctx := context.Background()
 	redisClient := InitCanvasRedis(ctx)
@@ -62,12 +66,7 @@ func main() {
 		hub.handleWs(w, r)
 	})
 
-	r.Post("/", func(w http.ResponseWriter, r *http.Request) {
-		val := r.URL.Query().Get("q")
-		if val != "" {
-			hub.Broadcast <- []byte(val)
-		}
-	})
+	r.Get("/", HandleHomePage)
 
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
