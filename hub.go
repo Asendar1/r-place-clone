@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"strconv"
+	"log"
 
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
@@ -43,6 +43,11 @@ func (c *Client) ReadPump() {
 		}
 
 		if len(p) == 4 {
+			redisClient := c.Hub.redisClient
+			err := redisClient.Set(context.Background(), "canvas", p, 0).Err()
+			if err != nil {
+				log.Println("Redis set error:", err)
+			}
 			c.Hub.Broadcast <- p
 		}
 
@@ -54,9 +59,10 @@ type Hub struct {
 	Broadcast  chan []byte
 	Register   chan *Client
 	Unregister chan *Client
+	redisClient *redis.Client
 }
 
-func (h *Hub) Run(redisClient *redis.Client) {
+func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.Register:
@@ -67,15 +73,6 @@ func (h *Hub) Run(redisClient *redis.Client) {
 				close(client.Send)
 			}
 		case msg := <-h.Broadcast:
-			// TODO fix redis write, this doesn't work
-			x := uint32(msg[0])<<8 | uint32(msg[1])
-			y := uint32(msg[2])<<8 | uint32(msg[3]) >> 4 // remove color bits
-
-			offset := uint32(y + 500000 * x)
-			offset_str := strconv.FormatUint(uint64(offset), 10)
-			color := uint32(msg[3] & 0x0F)
-			color_str := strconv.FormatUint(uint64(color), 10)
-			redisClient.BitField(context.Background(), "canvas", "SET", "u8", offset_str, color_str)
 			for client := range h.Clients {
 				select {
 				case client.Send <- msg:
