@@ -70,6 +70,7 @@ func (c *Client) ReadPump() {
 
 type Hub struct {
 	Clients     map[*Client]bool
+	buffer		[]byte
 	Broadcast   chan []byte
 	Register    chan *Client
 	Unregister  chan *Client
@@ -77,6 +78,9 @@ type Hub struct {
 }
 
 func (h *Hub) Run() {
+	timer := time.NewTicker(time.Millisecond * 100)
+	defer timer.Stop()
+
 	for {
 		select {
 		case client := <-h.Register:
@@ -87,14 +91,20 @@ func (h *Hub) Run() {
 				close(client.Send)
 			}
 		case msg := <-h.Broadcast:
+			h.buffer = append(h.buffer, msg...)
+		case <- timer.C:
+			if len(h.buffer) == 0 {
+				continue
+			}
 			for client := range h.Clients {
 				select {
-				case client.Send <- msg:
-				default:
-					close(client.Send)
-					delete(h.Clients, client)
+					case client.Send <- h.buffer:
+					default:
+						close(client.Send)
+						delete(h.Clients, client)
 				}
 			}
 		}
+		h.buffer = nil
 	}
 }

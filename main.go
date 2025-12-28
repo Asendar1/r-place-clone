@@ -4,7 +4,10 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -93,6 +96,8 @@ func main() {
 	}
 
 	go hub.Run()
+	go SaveCanvas(redisClient)
+
 	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
 		hub.handleWs(w, r)
 	})
@@ -104,5 +109,32 @@ func main() {
 	})
 	r.Get("/canvas", CanvasHandler(redisClient))
 
-	log.Fatal(http.ListenAndServe(":8080", r))
+	srv := &http.Server{
+		Addr:         ":8080",
+		Handler:      r,
+	}
+
+	go func() {
+		log.Println("Server Starting on 8080")
+		if err := srv.ListenAndServe(); err != nil {
+			if err != http.ErrServerClosed {
+				log.Fatalf("ListenAndServe(): %v", err)
+			}
+		}
+	} ()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	ctxShutDown, cancel := context.WithTimeout(context.Background(), time.Second * 30)
+	defer cancel()
+
+	if err := srv.Shutdown(ctxShutDown); err != nil {
+		log.Printf("Server forced to shutdown: %v", err)
+	}
+
+	log.Println("Server exiting")
+
 }
