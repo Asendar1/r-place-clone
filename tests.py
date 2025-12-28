@@ -8,8 +8,8 @@ async def client():
 		async with websockets.connect(uri) as websocket:
 			for j in range(5):
 				for i in range(200):
-					x = 500 + i + (j * -200)
-					y = 500 + i + (j * -200)
+					x = 500 + i + (j * 200)
+					y = 500 + i + (j * 200)
 					color = (i % 16)
 
 					data = (x << 16) | (y << 4) | color

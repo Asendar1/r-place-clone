@@ -37,10 +37,6 @@ func (h *Hub) handleWs(w http.ResponseWriter, r *http.Request) {
 	client.ReadPump()
 }
 
-func HandleHomePage(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "static/index.html")
-}
-
 func CanvasHandler(redisClient *redis.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := redisClient.Get(context.Background(), "canvas").Bytes()
@@ -51,10 +47,6 @@ func CanvasHandler(redisClient *redis.Client) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Write(data)
 	}
-}
-
-func HandleInteractiveCanvas(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "canvas.html")
 }
 
 func FileServer(r chi.Router, path string, root http.FileSystem) {
@@ -107,7 +99,9 @@ func main() {
 
 	filesDir := http.Dir("./static/")
 	FileServer(r, "/play", filesDir)
-	r.Get("/", HandleHomePage)
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/play/", http.StatusSeeOther)
+	})
 	r.Get("/canvas", CanvasHandler(redisClient))
 
 	log.Fatal(http.ListenAndServe(":8080", r))

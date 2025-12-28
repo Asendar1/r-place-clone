@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"log"
+	"strconv"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
@@ -43,22 +45,34 @@ func (c *Client) ReadPump() {
 		}
 
 		if len(p) == 4 {
-			redisClient := c.Hub.redisClient
-			err := redisClient.Set(context.Background(), "canvas", p, 0).Err()
-			if err != nil {
-				log.Println("Redis set error:", err)
+			x := int(p[0])<<8 | int(p[1])
+			y := (int(p[2])<<8 | int(p[3])) >> 4
+			color := int(p[3] & 0x0F)
+
+			if x >= 1000 || y >= 1000 || color > 15 {
+				continue
 			}
+			offset := y * 1000 + x
+			go func(off int, col int) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+				defer cancel()
+
+				offsetStr := strconv.Itoa(off)
+				err := c.Hub.redisClient.Do(ctx, "BITFIELD", "canvas", "SET", "u4", "#"+offsetStr, col).Err()
+				if err != nil {
+					log.Printf("Redis Error: %v", err)
+				}
+			}(offset, color)
 			c.Hub.Broadcast <- p
 		}
-
 	}
 }
 
 type Hub struct {
-	Clients    map[*Client]bool
-	Broadcast  chan []byte
-	Register   chan *Client
-	Unregister chan *Client
+	Clients     map[*Client]bool
+	Broadcast   chan []byte
+	Register    chan *Client
+	Unregister  chan *Client
 	redisClient *redis.Client
 }
 
