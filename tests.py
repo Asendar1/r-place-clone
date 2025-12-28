@@ -10,7 +10,7 @@ async def client():
 				for i in range(200):
 					x = 500 + i + (j * 200)
 					y = 500 + i + (j * 200)
-					color = (i % 16)
+					color = (i % 4)
 
 					data = (x << 16) | (y << 4) | color
 					msg = struct.pack(">I", data)

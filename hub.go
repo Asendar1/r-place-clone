@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -11,15 +12,22 @@ import (
 )
 
 type Client struct {
-	Hub  *Hub
-	Send chan []byte
-	conn *websocket.Conn
+	Hub    *Hub
+	Send   chan []byte
+	conn   *websocket.Conn
+	closed sync.Once
+}
+
+func (c *Client) Close() {
+	c.closed.Do(func() {
+		c.Hub.Unregister <- c
+		c.conn.Close()
+	})
 }
 
 func (c *Client) DisplayRefresh() {
-	defer func() {
-		c.conn.Close()
-	}()
+	defer c.Close()
+
 	for {
 		msg, ok := <-c.Send
 		if !ok {
@@ -34,10 +42,8 @@ func (c *Client) DisplayRefresh() {
 }
 
 func (c *Client) ReadPump() {
-	defer func() {
-		c.Hub.Unregister <- c
-		c.conn.Close()
-	}()
+	defer c.Close()
+
 	for {
 		_, p, err := c.conn.ReadMessage()
 		if err != nil {
@@ -49,10 +55,10 @@ func (c *Client) ReadPump() {
 			y := (int(p[2])<<8 | int(p[3])) >> 4
 			color := int(p[3] & 0x0F)
 
-			if x >= 1000 || y >= 1000 || color > 15 {
+			if x >= 1000 || y >= 1000 || color > 15 || color < 0 {
 				continue
 			}
-			offset := y * 1000 + x
+			offset := y*1000 + x
 			go func(off int, col int) {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 				defer cancel()
@@ -63,6 +69,7 @@ func (c *Client) ReadPump() {
 					log.Printf("Redis Error: %v", err)
 				}
 			}(offset, color)
+
 			c.Hub.Broadcast <- p
 		}
 	}
@@ -70,7 +77,7 @@ func (c *Client) ReadPump() {
 
 type Hub struct {
 	Clients     map[*Client]bool
-	buffer		[]byte
+	buffer      []byte
 	Broadcast   chan []byte
 	Register    chan *Client
 	Unregister  chan *Client
@@ -92,19 +99,24 @@ func (h *Hub) Run() {
 			}
 		case msg := <-h.Broadcast:
 			h.buffer = append(h.buffer, msg...)
-		case <- timer.C:
-			if len(h.buffer) == 0 {
-				continue
+		case <-timer.C:
+			count := len(h.Clients)
+			header := []byte{
+				255,
+				byte(count >> 24), byte(count >> 16), byte(count >> 8), byte(count),
 			}
+
+			payload := append(header, h.buffer...)
+
 			for client := range h.Clients {
 				select {
-					case client.Send <- h.buffer:
-					default:
-						close(client.Send)
-						delete(h.Clients, client)
+				case client.Send <- payload:
+				default:
+					close(client.Send)
+					delete(h.Clients, client)
 				}
 			}
+			h.buffer = nil
 		}
-		h.buffer = nil
 	}
 }

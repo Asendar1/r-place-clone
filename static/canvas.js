@@ -19,12 +19,10 @@ const colors = [
 
 const canvas = document.getElementById("rplace")
 
-
 async function init() {
 	const res = await fetch("/canvas")
 	const buffer = await res.arrayBuffer()
 	const bytes = new Uint8Array(buffer)
-
 
 	/** @type {HTMLCanvasElement} */
 	const ctx = canvas.getContext("2d")
@@ -34,8 +32,6 @@ async function init() {
 
 	for (let i = 0; i < bytes.length; i++) {
 		const byte = bytes[i]
-		// We mask due to JS using signed 32-bit for everything.
-		// So it may fill the left bits with 1s if the most significant bit was 1
 		const p1 = (byte >> 4) & 0x0F
 		const p2 = byte & 0x0F
 
@@ -58,27 +54,47 @@ function setPixelInImageData(data, index, colorIdx) {
 openWebSocket = () => {
 	const socket = new WebSocket("ws://localhost:8080/ws");
 	socket.binaryType = "arraybuffer";
+
+	socket.onopen = () => {
+		console.log("WebSocket connected");
+	};
+
+	socket.onerror = (error) => {
+		console.error("WebSocket error:", error);
+	};
+
+	socket.onclose = () => {
+		console.log("WebSocket closed");
+	};
+
 	socket.onmessage = (event) => {
 		const buffer = new Uint8Array(event.data);
-
-		// x coordinate
-		// 0011 1111
-		const x = (buffer[0] << 8) | buffer[1];
-
-		const yAndColor = (buffer[2] << 8) | buffer[3];
-
-		const y = yAndColor >> 4;
-		const color = yAndColor & 0x0F;
-
-		/** @type {HTMLCanvasElement} */
 		const ctx = canvas.getContext("2d");
-		const imgData = ctx.getImageData(0, 0, 1000, 1000);
 
-		setPixelInImageData(imgData.data, y * 1000 + x, color);
-		ctx.putImageData(imgData, 0, 0);
+		// check for the special packet
+		// This works cuz we append the payload head with out 5 packet
+		// so its always 5 or more
+		if (buffer.length >= 5 && buffer[0] === 255) {
+			const count = (buffer[1] << 24) | (buffer[2] << 16) | (buffer[3] << 8) | buffer[4];
+			document.getElementById("clientCount").innerText = count;
+
+			if (buffer.length > 5) {
+				for (let i = 5; i < buffer.length; i += 4) {
+					const x = (buffer[i] << 8) | buffer[i + 1];
+					const yAndColor = (buffer[i + 2] << 8) | buffer[i + 3];
+					const y = yAndColor >> 4;
+					const colorIdx = yAndColor & 0x0F;
+
+					if (x >= 0 && x < 1000 && y >= 0 && y < 1000) {
+						const rgb = colors[colorIdx];
+						ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+						ctx.fillRect(x, y, 1, 1);
+					}
+				}
+			}
+		}
 	}
 }
-
 
 init().then(() => {
 	openWebSocket();
