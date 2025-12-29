@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 )
+
+var globalUUID int64 = 0
 
 func (h *Hub) handleWs(w http.ResponseWriter, r *http.Request) {
 	upgrader := websocket.Upgrader{
@@ -28,9 +31,11 @@ func (h *Hub) handleWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	uuid := atomic.AddInt64(&globalUUID, 1)
 	client := &Client{
+		UUID: uuid,
 		Hub: h,
-		Send: make(chan []byte),
+		Send: make(chan []byte, 256),
 		conn: conn,
 	}
 
@@ -85,14 +90,18 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(time.Second * 60))
 
-
-
 	hub := &Hub{
-		Clients:    make(map[*Client]bool),
-		Broadcast:  make(chan []byte),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
+		Broadcast:  make(chan []byte, 10000),
+		Register:   make(chan *Client, 10000),
+		Unregister: make(chan *Client, 10000),
 		redisClient: redisClient,
+		redisQueue: make(chan PixelUpdate, 10000),
+	}
+	for i := 0; i < ShardCount; i++ {
+		hub.shards[i] = &Shard{Clients: make(map[*Client]bool)}
+	}
+	for i := 0; i < 100; i++ {
+		go hub.redisWorker()
 	}
 
 	go hub.Run()

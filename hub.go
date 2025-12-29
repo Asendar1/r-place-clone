@@ -11,7 +11,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+//#region Client
+
 type Client struct {
+	UUID   int64
 	Hub    *Hub
 	Send   chan []byte
 	conn   *websocket.Conn
@@ -59,29 +62,39 @@ func (c *Client) ReadPump() {
 				continue
 			}
 			offset := y*1000 + x
-			go func(off int, col int) {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-				defer cancel()
-
-				offsetStr := strconv.Itoa(off)
-				err := c.Hub.redisClient.Do(ctx, "BITFIELD", "canvas", "SET", "u4", "#"+offsetStr, col).Err()
-				if err != nil {
-					log.Printf("Redis Error: %v", err)
-				}
-			}(offset, color)
-
+			select {
+			case c.Hub.redisQueue <- PixelUpdate{offset: offset, color: color}:
+			default:
+			}
 			c.Hub.Broadcast <- p
 		}
 	}
 }
 
+//#endregion
+
+//#region Hub
+
+const ShardCount = 12
+
+type Shard struct {
+	Clients map[*Client]bool
+	sync.RWMutex
+}
+
+type PixelUpdate struct {
+	offset int
+	color  int
+}
+
 type Hub struct {
-	Clients     map[*Client]bool
+	shards      [ShardCount]*Shard
 	buffer      []byte
 	Broadcast   chan []byte
 	Register    chan *Client
 	Unregister  chan *Client
 	redisClient *redis.Client
+	redisQueue  chan PixelUpdate
 }
 
 func (h *Hub) Run() {
@@ -91,32 +104,73 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.Register:
-			h.Clients[client] = true
+			i := client.UUID % ShardCount
+			h.shards[i].Lock()
+			h.shards[i].Clients[client] = true
+			h.shards[i].Unlock()
 		case client := <-h.Unregister:
-			if _, ok := h.Clients[client]; ok {
-				delete(h.Clients, client)
+			i := client.UUID % ShardCount
+			h.shards[i].Lock()
+			if _, ok := h.shards[i].Clients[client]; ok {
+				delete(h.shards[i].Clients, client)
 				close(client.Send)
 			}
+			h.shards[i].Unlock()
 		case msg := <-h.Broadcast:
 			h.buffer = append(h.buffer, msg...)
 		case <-timer.C:
-			count := len(h.Clients)
-			header := []byte{
-				255,
-				byte(count >> 24), byte(count >> 16), byte(count >> 8), byte(count),
+
+			totalClients := 0
+			for i := 0; i < ShardCount; i++ {
+				h.shards[i].RLock()
+				totalClients += len(h.shards[i].Clients)
+				h.shards[i].RUnlock()
 			}
 
-			payload := append(header, h.buffer...)
+			currentBuffer := h.buffer
+			h.buffer = make([]byte, 0, 4096)
+			payload := h.makePayLoad(totalClients, currentBuffer)
+			for i := 0; i < ShardCount; i++ {
+				go func(s *Shard) {
+					s.RLock()
+					defer s.RUnlock()
 
-			for client := range h.Clients {
-				select {
-				case client.Send <- payload:
-				default:
-					close(client.Send)
-					delete(h.Clients, client)
-				}
+					for client := range s.Clients {
+						select {
+						case client.Send <- payload:
+						default:
+							continue
+						}
+					}
+				}(h.shards[i])
 			}
-			h.buffer = nil
 		}
 	}
 }
+
+func (h *Hub) makePayLoad(totalClients int, currentBuffer []byte) []byte {
+	payload := make([]byte, len(currentBuffer)+5)
+
+	payload[0] = 255
+	payload[1] = byte(totalClients >> 24)
+	payload[2] = byte(totalClients >> 16)
+	payload[3] = byte(totalClients >> 8)
+	payload[4] = byte(totalClients)
+
+	copy(payload[5:], currentBuffer)
+	return payload
+}
+
+func (h *Hub) redisWorker() {
+	for update := range h.redisQueue {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		offsetStr := strconv.Itoa(update.offset)
+		err := h.redisClient.Do(ctx, "BITFIELD", "canvas", "SET", "u4", "#"+offsetStr, update.color).Err()
+		if err != nil {
+			log.Printf("Redis Error: %v", err)
+		}
+		cancel()
+	}
+}
+
+//#endregion
