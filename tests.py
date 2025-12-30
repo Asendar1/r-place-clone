@@ -8,8 +8,8 @@ async def client(client_id):
     try:
         async with websockets.connect(
             uri,
-            ping_interval=None,  # Disable client pings
-            ping_timeout=None,   # We'll handle server pings
+            ping_interval=None,
+            ping_timeout=None,
             close_timeout=10
         ) as websocket:
 
@@ -17,15 +17,13 @@ async def client(client_id):
             for _ in range(100):
                 x = random.randint(0, 999)
                 y = random.randint(0, 999)
-                color = random.randint(0, 15)  # Fixed: was 0-16
+                color = random.randint(0, 15)
 
                 data = (x << 16) | (y << 4) | color
                 await websocket.send(data.to_bytes(4, byteorder='big'))
 
-                # Don't spam - respect rate limit
                 await asyncio.sleep(random.uniform(0.5, 1.0))
 
-            # Keep connection alive for a bit to receive updates
             await asyncio.sleep(5)
 
     except websockets.exceptions.ConnectionClosedError as e:
@@ -36,8 +34,8 @@ async def client(client_id):
         print(f"Client {client_id} - Error: {e}")
 
 async def main():
-    number_of_clients = 10000
-    batch_size = 100  # Connect in batches
+    number_of_clients = 1000000
+    batch_size = 10000  # Connect in batches
 
     print(f"Starting {number_of_clients} clients in batches of {batch_size}...")
 
@@ -48,7 +46,6 @@ async def main():
         tasks = [client(i) for i in range(batch_start, batch_end)]
         await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Brief pause between batches
         await asyncio.sleep(0.5)
 
     print("All clients finished")
