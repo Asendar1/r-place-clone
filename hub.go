@@ -5,6 +5,7 @@ import (
 	"log"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -14,11 +15,12 @@ import (
 //#region Client
 
 type Client struct {
-	UUID   int64
-	Hub    *Hub
-	Send   chan []byte
-	conn   *websocket.Conn
-	closed sync.Once
+	UUID       int64
+	Hub        *Hub
+	Send       chan []byte
+	conn       *websocket.Conn
+	closed     sync.Once
+	lastActive time.Time
 }
 
 func (c *Client) Close() {
@@ -31,21 +33,39 @@ func (c *Client) Close() {
 func (c *Client) DisplayRefresh() {
 	defer c.Close()
 
-	for {
-		msg, ok := <-c.Send
-		if !ok {
-			return
-		}
+	ticker := time.NewTicker(time.Second * 30)
+	defer ticker.Stop()
 
-		err := c.conn.WriteMessage(websocket.BinaryMessage, msg)
-		if err != nil {
-			return
+	for {
+		select {
+		case msg, ok := <-c.Send:
+			if !ok {
+				return
+			}
+			c.conn.SetWriteDeadline(time.Now().Add(time.Second * 10))
+			err := c.conn.WriteMessage(websocket.BinaryMessage, msg)
+			if err != nil {
+				return
+			}
+		case <-ticker.C:
+			c.conn.SetWriteDeadline(time.Now().Add(time.Second * 10))
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
 		}
 	}
 }
 
+const rateLimit = time.Millisecond * 500
+
 func (c *Client) ReadPump() {
 	defer c.Close()
+
+	c.conn.SetReadDeadline(time.Now().Add(time.Second * 60))
+	c.conn.SetPongHandler(func(appData string) error {
+		c.conn.SetReadDeadline(time.Now().Add(time.Second * 60))
+		return nil
+	})
 
 	for {
 		_, p, err := c.conn.ReadMessage()
@@ -53,7 +73,16 @@ func (c *Client) ReadPump() {
 			break
 		}
 
+		c.conn.SetReadDeadline(time.Now().Add(time.Second * 60))
+
 		if len(p) == 4 {
+
+			// send a "Too Fast" msg for the front end later
+			if time.Since(c.lastActive) < rateLimit {
+				continue
+			}
+			c.lastActive = time.Now()
+
 			x := int(p[0])<<8 | int(p[1])
 			y := (int(p[2])<<8 | int(p[3])) >> 4
 			color := int(p[3] & 0x0F)
@@ -66,7 +95,10 @@ func (c *Client) ReadPump() {
 			case c.Hub.redisQueue <- PixelUpdate{offset: offset, color: color}:
 			default:
 			}
-			c.Hub.Broadcast <- p
+			select {
+			case c.Hub.Broadcast <- p:
+			default:
+			}
 		}
 	}
 }
@@ -98,34 +130,39 @@ type Hub struct {
 }
 
 func (h *Hub) Run() {
-	timer := time.NewTicker(time.Millisecond * 100)
-	defer timer.Stop()
 
-	for {
-		select {
-		case client := <-h.Register:
+	go func() {
+		for client := range h.Register {
 			i := client.UUID % ShardCount
 			h.shards[i].Lock()
 			h.shards[i].Clients[client] = true
 			h.shards[i].Unlock()
-		case client := <-h.Unregister:
+		}
+	}()
+	go func() {
+		for client := range h.Unregister {
 			i := client.UUID % ShardCount
 			h.shards[i].Lock()
 			if _, ok := h.shards[i].Clients[client]; ok {
+				atomic.AddInt64(&GlobalClientCount, -1)
 				delete(h.shards[i].Clients, client)
 				close(client.Send)
 			}
 			h.shards[i].Unlock()
+		}
+	}()
+
+	timer := time.NewTicker(time.Millisecond * 100)
+	defer timer.Stop()
+	for {
+		select {
 		case msg := <-h.Broadcast:
-			h.buffer = append(h.buffer, msg...)
+			if len(h.buffer) < 1048576 {
+				h.buffer = append(h.buffer, msg...)
+			}
 		case <-timer.C:
 
-			totalClients := 0
-			for i := 0; i < ShardCount; i++ {
-				h.shards[i].RLock()
-				totalClients += len(h.shards[i].Clients)
-				h.shards[i].RUnlock()
-			}
+			totalClients := atomic.LoadInt64(&GlobalClientCount)
 
 			currentBuffer := h.buffer
 			h.buffer = make([]byte, 0, 4096)
@@ -139,7 +176,6 @@ func (h *Hub) Run() {
 						select {
 						case client.Send <- payload:
 						default:
-							continue
 						}
 					}
 				}(h.shards[i])
@@ -148,7 +184,7 @@ func (h *Hub) Run() {
 	}
 }
 
-func (h *Hub) makePayLoad(totalClients int, currentBuffer []byte) []byte {
+func (h *Hub) makePayLoad(totalClients int64, currentBuffer []byte) []byte {
 	payload := make([]byte, len(currentBuffer)+5)
 
 	payload[0] = 255

@@ -18,12 +18,14 @@ import (
 )
 
 var globalUUID int64 = 0
+var GlobalClientCount int64 = 0
 
 func (h *Hub) handleWs(w http.ResponseWriter, r *http.Request) {
 	upgrader := websocket.Upgrader{
-		ReadBufferSize: 1024,
-		WriteBufferSize: 1024,
+		ReadBufferSize: 4096,
+		WriteBufferSize: 4096,
 		CheckOrigin: func(r *http.Request) bool {return true},
+		HandshakeTimeout: 10 * time.Second,
 	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -31,12 +33,14 @@ func (h *Hub) handleWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	atomic.AddInt64(&GlobalClientCount, 1)
 	uuid := atomic.AddInt64(&globalUUID, 1)
 	client := &Client{
 		UUID: uuid,
 		Hub: h,
-		Send: make(chan []byte, 256),
+		Send: make(chan []byte, 512),
 		conn: conn,
+		lastActive: time.Now(),
 	}
 
 	h.Register <- client
@@ -91,11 +95,11 @@ func main() {
 	r.Use(middleware.Timeout(time.Second * 60))
 
 	hub := &Hub{
-		Broadcast:  make(chan []byte, 10000),
-		Register:   make(chan *Client, 10000),
-		Unregister: make(chan *Client, 10000),
+		Broadcast:  make(chan []byte, 10000000),
+		Register:   make(chan *Client, 100000),
+		Unregister: make(chan *Client, 100000),
 		redisClient: redisClient,
-		redisQueue: make(chan PixelUpdate, 10000),
+		redisQueue: make(chan PixelUpdate, 100000),
 	}
 	for i := 0; i < ShardCount; i++ {
 		hub.shards[i] = &Shard{Clients: make(map[*Client]bool)}
@@ -121,6 +125,10 @@ func main() {
 	srv := &http.Server{
 		Addr:         ":8080",
 		Handler:      r,
+		ReadTimeout: 15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		MaxHeaderBytes: 1 << 20,
 	}
 
 	go func() {
