@@ -1,0 +1,41 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #252525;
+}
+
+#CanvasDiv {
+    display: flex;
+    overflow: hidden;
+}
+
+#canvasWrapper {
+    overflow: auto;
+    position: relative;
+    border: 1px solid black;
+    margin-right: 20px;
+	width: 1000px;
+	height: 1000px;
+	cursor: default;
+	user-select: none;
+}
+
+#CanvasDiv canvas {
+    display: block;
+    image-rendering: pixelated;
+	transition: transform 0.1s ease-out;
+	width: 1000px;
+	height: 1000px;
+}
+
+#pallete button {
+    width: 30px;
+    height: 30px;
+    border: 1px solid black;
+    margin: 2px;
+    cursor: pointer;
+}
+
+#pallete button:focus {
+    outline: 3px solid white;
+    border-color: black;
+}

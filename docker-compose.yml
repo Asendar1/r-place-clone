@@ -20,6 +20,8 @@ services:
       - REDIS_ADDR=redis:6379
     networks:
       - r-place-network
+    volumes:
+      - ./static:/root/static
 
 networks:
   r-place-network:

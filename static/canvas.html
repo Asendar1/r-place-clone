@@ -3,17 +3,57 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<link rel="stylesheet" href="canvas.css">
+		<link rel="stylesheet" href="canvas.css" />
 		<title>r_place_clone</title>
 	</head>
 	<body>
-		<div>
-			<h3>Clients Connected: <span id="clientCount">0</span></h3>
-		</div>
-		<canvas id="rplace" width="1000" height="1000" style="border:1px solid #000000;"></canvas>
-		<div id="pallete">
-			<button onclick="selectedColor=0" style="background: white">white</button>
-			<button onclick="selectedColor=1" style="background: red">red</button>
+		<div id="CanvasDiv">
+			<div id="canvasWrapper">
+				<div
+					id="canvasContainer"
+					style="position: relative; width: 1000px; height: 1000px"
+				>
+					<canvas id="rplace" width="1000" height="1000"></canvas>
+				</div>
+			</div>
+			<div>
+				<div>
+					<h3>Clients Connected: <span id="clientCount">0</span></h3>
+				</div>
+				<div id="pallete">
+					<button onclick="selectedColor=0" style="background: white"></button>
+					<button
+						onclick="selectedColor=1"
+						style="background: lightgray"
+					></button>
+					<button onclick="selectedColor=2" style="background: gray"></button>
+					<button onclick="selectedColor=3" style="background: black"></button>
+					<button onclick="selectedColor=4" style="background: pink"></button>
+					<button onclick="selectedColor=5" style="background: red"></button>
+					<button onclick="selectedColor=6" style="background: orange"></button>
+					<button onclick="selectedColor=7" style="background: brown"></button>
+					<button onclick="selectedColor=8" style="background: yellow"></button>
+					<button
+						onclick="selectedColor=9"
+						style="background: lightgreen"
+					></button>
+					<button onclick="selectedColor=10" style="background: green"></button>
+					<button onclick="selectedColor=11" style="background: cyan"></button>
+					<button onclick="selectedColor=12" style="background: blue"></button>
+					<button
+						onclick="selectedColor=13"
+						style="background: darkblue"
+					></button>
+					<button
+						onclick="selectedColor=14"
+						style="background: lavender"
+					></button>
+					<button
+						onclick="selectedColor=15"
+						style="background: purple"
+					></button>
+				</div>
+			</div>
 		</div>
 		<script src="canvas.js"></script>
 	</body>

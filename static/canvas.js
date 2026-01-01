@@ -19,6 +19,7 @@ const colors = [
 
 const canvas = document.getElementById("rplace")
 
+//#region Initialization
 async function init() {
 	const res = await fetch("/canvas")
 	const buffer = await res.arrayBuffer()
@@ -40,6 +41,7 @@ async function init() {
 	}
 	ctx.putImageData(imgData, 0, 0);
 }
+//#endregion
 
 function setPixelInImageData(data, index, colorIdx) {
 	const rgb = colors[colorIdx];
@@ -51,8 +53,9 @@ function setPixelInImageData(data, index, colorIdx) {
 	data[i + 3] = 255; // Alpha
 }
 
+const socket = new WebSocket("ws://localhost:8080/ws");
+
 openWebSocket = () => {
-	const socket = new WebSocket("ws://localhost:8080/ws");
 	socket.binaryType = "arraybuffer";
 
 	socket.onopen = () => {
@@ -99,3 +102,138 @@ openWebSocket = () => {
 init().then(() => {
 	openWebSocket();
 })
+
+const wrapper = document.getElementById("canvasWrapper");
+
+
+let scale = 1;
+const minScale = 1;
+const maxScale = 10;
+const baseWidth = 1000;
+const baseHeight = 1000;
+
+canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+
+    const rect = wrapper.getBoundingClientRect();
+
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Thank you A.I god forbid i learn JS
+    const contentX = (wrapper.scrollLeft + mouseX) / scale;
+    const contentY = (wrapper.scrollTop + mouseY) / scale;
+
+    const delta = e.deltaY < 0 ? 1.1 : 0.9;
+    const newScale = Math.min(maxScale, Math.max(minScale, scale * delta));
+
+    if (newScale !== scale) {
+        scale = newScale;
+
+        // Resize BOTH the container and the canvas
+        container.style.width = `${baseWidth * scale}px`;
+        container.style.height = `${baseHeight * scale}px`;
+        canvas.style.width = `${baseWidth * scale}px`;
+        canvas.style.height = `${baseHeight * scale}px`;
+
+        wrapper.scrollLeft = (contentX * scale) - mouseX;
+        wrapper.scrollTop = (contentY * scale) - mouseY;
+    }
+}, { passive: false });
+
+let isPanning = false;
+let startX, startY;
+let startScrollLeft, startScrollTop;
+
+
+wrapper.addEventListener("mousedown", (e) => {
+    isPanning = true;
+    wrapper.style.cursor = "grabbing";
+
+    startX = e.pageX;
+    startY = e.pageY;
+
+    startScrollLeft = wrapper.scrollLeft;
+    startScrollTop = wrapper.scrollTop;
+});
+
+window.addEventListener("mousemove", (e) => {
+    if (!isPanning) return;
+
+    const walkX = e.pageX - startX;
+    const walkY = e.pageY - startY;
+
+    wrapper.scrollLeft = startScrollLeft - walkX;
+    wrapper.scrollTop = startScrollTop - walkY;
+});
+
+window.addEventListener("mouseup", () => {
+    isPanning = false;
+    wrapper.style.cursor = "default";
+});
+
+let selectedColor = 0;
+
+const container = document.getElementById("canvasContainer"); // New reference
+const highlight = document.createElement("div");
+
+highlight.style.position = "absolute";
+highlight.style.border = "1px solid white";
+highlight.style.pointerEvents = "none";
+highlight.style.boxSizing = "border-box";
+highlight.style.zIndex = "10";
+highlight.style.display = "none"; // Start hidden
+container.appendChild(highlight); // Attach to container!
+
+wrapper.addEventListener("mousemove", (e) => {
+    const rect = wrapper.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Calculate the pixel coordinate (0-999)
+    const x = Math.floor((wrapper.scrollLeft + mouseX) / scale);
+    const y = Math.floor((wrapper.scrollTop + mouseY) / scale);
+
+    if (x >= 0 && x < 1000 && y >= 0 && y < 1000) {
+        highlight.style.display = "block";
+        highlight.style.width = `${scale}px`;  // Match pixel size
+        highlight.style.height = `${scale}px`;
+        highlight.style.left = `${x * scale}px`; // Exact pixel position
+        highlight.style.top = `${y * scale}px`;
+    } else {
+        highlight.style.display = "none";
+    }
+});
+
+wrapper.addEventListener("click", (e) => {
+    // If we were just panning don't paint
+    if (Math.abs(e.pageX - startX) > 5 || Math.abs(e.pageY - startY) > 5) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const x = Math.floor((wrapper.scrollLeft + (e.clientX - rect.left)) / scale);
+    const y = Math.floor((wrapper.scrollTop + (e.clientY - rect.top)) / scale);
+	console.log(`Clicked at canvas coords: (${x}, ${y}) with color ${selectedColor}`);
+    if (x >= 0 && x < 1000 && y >= 0 && y < 1000) {
+        paintPixel(x, y, selectedColor);
+    }
+});
+
+function paintPixel(x, y, colorIdx) {
+    const buffer = new ArrayBuffer(4);
+    const view = new DataView(buffer);
+    view.setUint16(0, x);
+    view.setUint16(2, (y << 4) | (colorIdx & 0x0F));
+
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(buffer);
+    }
+}
+
+const buttons = document.querySelectorAll("#pallete button");
+buttons.forEach((button, index) => {
+	button.addEventListener("click", () => {
+		selectedColor = index;
+		buttons.forEach(btn => btn.style.outline = "none");
+		button.style.outline = "3px solid white";
+	});
+});
