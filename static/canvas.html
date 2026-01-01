@@ -4,57 +4,130 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="stylesheet" href="canvas.css" />
-		<title>r_place_clone</title>
+		<title>Pixel World</title>
 	</head>
 	<body>
+		<div class="background-container">
+			<div class="star"></div>
+			<div class="star"></div>
+			<div class="star"></div>
+			<div class="star"></div>
+			<div class="star"></div>
+			<div class="star"></div>
+			<div class="star"></div>
+		</div>
+
 		<div id="CanvasDiv">
-			<div id="canvasWrapper">
-				<div
-					id="canvasContainer"
-					style="position: relative; width: 1000px; height: 1000px"
-				>
-					<canvas id="rplace" width="1000" height="1000"></canvas>
+			<div class="interface-frame">
+				<div id="canvasWrapper">
+					<div
+						id="canvasContainer"
+						style="position: relative; width: 1000px; height: 1000px"
+					>
+						<canvas id="rplace" width="1000" height="1000"></canvas>
+					</div>
+				</div>
+
+				<div id="rightSidebar">
+					<div class="stats-container">
+						<div class="stat-item">
+							<span class="stat-label">Clients Connected</span>
+							<span id="clientCount" class="stat-value">1</span>
+						</div>
+					</div>
+					<div class="info-item">
+						<div class="info-label">Backend Specs</div>
+						<div class="info-content">
+							<p><strong>Engine:</strong> Go (Golang)</p>
+							<p><strong>Concurrency:</strong> 12-Shard Hub</p>
+							<p><strong>Storage:</strong> Redis Bitfield (u4)</p>
+							<p><strong>Protocol:</strong> Binary WebSockets</p>
+						</div>
+					</div>
+					<div class="info-item">
+						<div class="info-label">About</div>
+						<div class="info-content">
+							<p><strong>Owner:</strong> Asendar</p>
+							<p>
+								This is a collaborative pixel art canvas, inspired by r/place.
+								Place pixels, create art together!
+							</p>
+							<p>
+								<strong>Technical Overview: </strong>
+								Built to handle real-time WebSocket communication and
+								high-frequency canvas updates. This project explores concurrent
+								data handling and efficient state synchronization between
+								multiple clients.
+							</p>
+							<p>
+								<strong>Instructions:</strong> Select a color from the palette
+								and click on the canvas to place a pixel. Updates from others
+								are instant and in real time!
+							</p>
+						</div>
+					</div>
+					<div class="info-item">
+						<div class="info-label">Links</div>
+						<div class="info-content">
+							<p>
+								This project was built to demonstrate Go backend skills for SWE
+								job applications.
+							</p>
+							<p>
+								<strong>GitHub Repo:</strong>
+								<a
+									href="https://github.com/asendar1/r-place-clone"
+									target="_blank"
+									style="color: #5f91ff"
+									>View on GitHub</a
+								>
+							</p>
+							<p>
+								<strong>LinkedIn:</strong>
+								<a
+									href="https://linkedin.com/in/asendar"
+									target="_blank"
+									style="color: #5f91ff"
+									>Connect on LinkedIn</a
+								>
+							</p>
+						</div>
+					</div>
 				</div>
 			</div>
-			<div>
-				<div>
-					<h3>Clients Connected: <span id="clientCount">0</span></h3>
-				</div>
-				<div id="pallete">
-					<button onclick="selectedColor=0" style="background: white"></button>
-					<button
-						onclick="selectedColor=1"
-						style="background: lightgray"
-					></button>
-					<button onclick="selectedColor=2" style="background: gray"></button>
-					<button onclick="selectedColor=3" style="background: black"></button>
-					<button onclick="selectedColor=4" style="background: pink"></button>
-					<button onclick="selectedColor=5" style="background: red"></button>
-					<button onclick="selectedColor=6" style="background: orange"></button>
-					<button onclick="selectedColor=7" style="background: brown"></button>
-					<button onclick="selectedColor=8" style="background: yellow"></button>
-					<button
-						onclick="selectedColor=9"
-						style="background: lightgreen"
-					></button>
-					<button onclick="selectedColor=10" style="background: green"></button>
-					<button onclick="selectedColor=11" style="background: cyan"></button>
-					<button onclick="selectedColor=12" style="background: blue"></button>
-					<button
-						onclick="selectedColor=13"
-						style="background: darkblue"
-					></button>
-					<button
-						onclick="selectedColor=14"
-						style="background: lavender"
-					></button>
-					<button
-						onclick="selectedColor=15"
-						style="background: purple"
-					></button>
-				</div>
+
+			<div id="pallete">
+				<button onclick="selectedColor=0" style="background: white"></button>
+				<button
+					onclick="selectedColor=1"
+					style="background: lightgray"
+				></button>
+				<button onclick="selectedColor=2" style="background: gray"></button>
+				<button onclick="selectedColor=3" style="background: black"></button>
+				<button onclick="selectedColor=4" style="background: pink"></button>
+				<button onclick="selectedColor=5" style="background: red"></button>
+				<button onclick="selectedColor=6" style="background: orange"></button>
+				<button onclick="selectedColor=7" style="background: brown"></button>
+				<button onclick="selectedColor=8" style="background: yellow"></button>
+				<button
+					onclick="selectedColor=9"
+					style="background: lightgreen"
+				></button>
+				<button onclick="selectedColor=10" style="background: green"></button>
+				<button onclick="selectedColor=11" style="background: cyan"></button>
+				<button onclick="selectedColor=12" style="background: blue"></button>
+				<button
+					onclick="selectedColor=13"
+					style="background: darkblue"
+				></button>
+				<button
+					onclick="selectedColor=14"
+					style="background: lavender"
+				></button>
+				<button onclick="selectedColor=15" style="background: purple"></button>
 			</div>
 		</div>
+
 		<script src="canvas.js"></script>
 	</body>
 </html>

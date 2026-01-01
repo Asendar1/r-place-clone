@@ -233,7 +233,15 @@ const buttons = document.querySelectorAll("#pallete button");
 buttons.forEach((button, index) => {
 	button.addEventListener("click", () => {
 		selectedColor = index;
-		buttons.forEach(btn => btn.style.outline = "none");
+		buttons.forEach(btn => resetButtonStyle(btn));
 		button.style.outline = "3px solid white";
+		button.style.width = "35px";
+		button.style.height = "35px";
 	});
 });
+
+function resetButtonStyle(btn) {
+	btn.style.outline = "none";
+	btn.style.width = "30px";
+	btn.style.height = "30px";
+}

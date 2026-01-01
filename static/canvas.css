@@ -1,41 +1,180 @@
+/* --- Global Reset --- */
 body {
-    font-family: Arial, sans-serif;
-    background-color: #252525;
-}
-
-#CanvasDiv {
-    display: flex;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    width: 100vw;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: #050505;
+    color: #ffffff;
     overflow: hidden;
 }
 
-#canvasWrapper {
-    overflow: auto;
+/* --- Layout Container --- */
+#CanvasDiv {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     position: relative;
-    border: 1px solid black;
-    margin-right: 20px;
-	width: 1000px;
-	height: 1000px;
-	cursor: default;
-	user-select: none;
 }
 
-#CanvasDiv canvas {
-    display: block;
-    image-rendering: pixelated;
-	transition: transform 0.1s ease-out;
-	width: 1000px;
-	height: 1000px;
+/* --- Updated Interface Frame --- */
+.interface-frame {
+    display: flex;
+    width: 95vw;
+    height: 82vh;
+    max-width: 1600px;
+    background: rgba(20, 20, 20, 0.6);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    /* ADD THIS: ensures children stay within the 95vw limit */
+    box-sizing: border-box;
+}
+
+/* --- Updated Canvas Wrapper --- */
+#canvasWrapper {
+    flex-grow: 1;
+    /* ADD THIS: prevents the canvas from pushing the sidebar out */
+    min-width: 0;
+    height: 100%;
+    overflow: auto;
+    background-image:
+        linear-gradient(45deg, #111 25%, transparent 25%),
+        linear-gradient(-45deg, #111 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #111 75%),
+        linear-gradient(-45deg, transparent 75%, #111 75%);
+    background-size: 20px 20px;
+    cursor: crosshair;
+}
+
+/* --- Updated Right Sidebar --- */
+#rightSidebar {
+    /* CHANGE THIS: 0 flex-grow, 0 flex-shrink, 300px basis */
+    flex: 0 0 300px;
+    width: 300px;
+    background: rgba(0, 0, 0, 0.4);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 20px;
+    /* ADD THIS: ensures padding doesn't add to the 300px width */
+    box-sizing: border-box;
+}
+
+canvas {
+	display: block;
+	image-rendering: pixelated;
+}
+
+.info-item {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: #ccc;
+}
+
+.info-label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #5f91ff;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.info-content p {
+    margin: 5px 0;
+    line-height: 1.4;
+}
+
+.stats-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 10px 15px;
+    border-radius: 10px;
+}
+
+.stat-label { font-size: 12px; color: #888; text-transform: uppercase; }
+.stat-value { font-size: 18px; font-weight: bold; color: #5f91ff; }
+
+.log-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.log-container h3 { margin: 0 0 10px 0; font-size: 16px; opacity: 0.8; }
+
+.log-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    font-size: 13px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.log-entry { margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px; }
+
+/* --- Palette Dock --- */
+#pallete {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    padding: 12px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 #pallete button {
-    width: 30px;
-    height: 30px;
-    border: 1px solid black;
-    margin: 2px;
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
     cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-#pallete button:focus {
-    outline: 3px solid white;
-    border-color: black;
+#pallete button:hover { transform: translateY(-10px) scale(1.2); border-color: white; }
+
+/* --- Comet Background Animation --- */
+.background-container { position: fixed; width: 100%; height: 100%; z-index: -1; background: #050505; }
+.star {
+    position: absolute; width: 2px; height: 2px;
+    background: linear-gradient(-45deg, #5f91ff, rgba(0, 0, 255, 0));
+    filter: drop-shadow(0 0 6px #699bff);
+    animation: shooting 4s ease-in-out infinite;
 }
+
+@keyframes shooting {
+    0% { transform: translateX(0) translateY(0) rotate(45deg); width: 0; }
+    30% { width: 100px; }
+    100% { transform: translateX(1200px) translateY(1200px) rotate(45deg); width: 0; }
+}
+
+/* Random Comet Positions */
+.star:nth-child(1) { top: 0; right: 10%; animation-delay: 0s; }
+.star:nth-child(2) { top: 0; right: 40%; animation-delay: 1.5s; }
+.star:nth-child(3) { top: 20%; right: 0; animation-delay: 3s; }
+.star:nth-child(4) { top: 0; right: 70%; animation-delay: 4.5s; }
+.star:nth-child(5) { top: 40%; right: 0; animation-delay: 2s; }
+.star:nth-child(6) { top: 10%; right: 80%; animation-delay: 5.5s; }
+.star:nth-child(7) { top: 30%; right: 20%; animation-delay: 3.5s; }
