@@ -118,7 +118,7 @@ func main() {
 	filesDir := http.Dir("./static/")
 	FileServer(r, "/play", filesDir)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/play/", http.StatusSeeOther)
+		http.Redirect(w, r, "/play/canvas.html", http.StatusSeeOther)
 	})
 	r.Get("/canvas", CanvasHandler(redisClient))
 
