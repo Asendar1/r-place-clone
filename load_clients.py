@@ -65,24 +65,17 @@ async def main():
     ramp_up_interval = 0.5
 
 	# All credits for their ownership of these images go to their respective creators
-	# Images sourced from https://pixilart.com/ and https://tenor.com/
+	# Images sourced from https://pixilart.com/ and https://tenor.com/ (Or some meme website)
     # I don't gain any benefit from these images, nor do I claim ownership of them
     img_urls = [
-        "https://art.pixilart.com/sr5z6be59ee9f2aws3.png",
-        "https://art.pixilart.com/sr5zd100fa1044aws3.png",
-        "https://art.pixilart.com/sr5z463605d847aws3.png",
-        "https://art.pixilart.com/sr5z46709dad2daws3.png",
-        "https://media.tenor.com/t3dLLNaI50oAAAAe/cat-cats.png",
-        "https://media.tenor.com/XXDVU_	GxHZYAAAAe/joker-speed-trying-not-to-laugh.png",
-        "https://art.pixilart.com/sr5z8db621516eaws3.png",
-        "https://art.pixilart.com/sr5z6be59ee9f2aws3.png",
+        "https://images7.memedroid.com/images/UPLOADED915/62aedb7670f67.jpeg",
     ]
     batch_size = number_of_clients // len(img_urls) # each image gets equal clients
 
     imgs = []
     for url in img_urls:
         try:
-            img_pixels = image_to_pixel_list(url, width=200 ,URL=True)
+            img_pixels = image_to_pixel_list(url, width=1000 ,URL=True)
             imgs.append(img_pixels)
         except Exception:
             pass
@@ -94,8 +87,8 @@ async def main():
     print("Images loaded")
     print(f"Starting {number_of_clients} clients in batches of {batch_size}...")
 
-    xs = random.randint(0, 999)
-    ys = random.randint(0, 999)
+    xs = 0
+    ys = 0
 
     running_tasks = []
 
@@ -104,8 +97,6 @@ async def main():
         print(f"Connecting clients {batch_start} to {batch_end}...")
 
         img = imgs[(batch_start // batch_size) % len(img_urls)]
-        xs = (xs + random.randint(-50, 300)) % 1000
-        ys = (ys + random.randint(-150, 150)) % 1000
 
         for i in range(batch_start, batch_end):
             task = asyncio.create_task(client(img, xs, ys))
