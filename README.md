@@ -3,6 +3,9 @@
 ![Cat-Gif-ezgif com-optimize](https://github.com/user-attachments/assets/64ac5b4d-e818-4359-aa64-260015be92ea)
 
 *5,000 coordinated bots drawing the staring cat vs. 100 saboteurs — all in real-time*
+[![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)](https://redis.io)
+[![WebSockets](https://img.shields.io/badge/WebSockets-gorilla-4ECDC4)](https://github.com/gorilla/websocket)
 
 🚀 **Performance at a Glance**
 
@@ -77,9 +80,15 @@ http://localhost:8080/play
 # Setup python venv for the tests  (use python3 instead if using linux)
 python -m venv venv
 
-# instal dependices
+# Source into the venv
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 
 # Launch the Bot War
+# Depending on your hardware 5k bots could be too much. Thus please adjust the number_of_clients in load_client.py file
 python load_clients.py
 
+# Ctrl+C or close terminal to terminate the python script
+```
