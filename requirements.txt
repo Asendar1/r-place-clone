@@ -1,0 +1,3 @@
+websockets>=10.0
+Pillow>=8.0
+requests
