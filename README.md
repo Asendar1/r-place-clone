@@ -69,7 +69,7 @@ git clone "https://github.com/Asendar1/r-place-clone"
 cd r-place-clone
 
 # Start Redis + Go backend (Docker)
-docker-compose up --build
+docker-compose up --build -d
 
 # Open in browser (Try it before the bots do :D)
 http://localhost:8080/play
@@ -82,3 +82,4 @@ pip install -r requirements.txt
 
 # Launch the Bot War
 python load_clients.py
+
